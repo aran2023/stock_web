@@ -22,14 +22,17 @@
 
         async function processQuery() {
             const urlParams = new URLSearchParams(window.location.search);
-            const nameParam = urlParams.get('name');
-            const codeParam = urlParams.get('code');
+            // ?name= 값 하나로 코드/종목명 구분 없이 받음 (?name=삼성전자 또는 ?name=005930)
+            const queryRaw = urlParams.get('name') || urlParams.get('code');
             const outputEl = document.getElementById('output');
 
-            if (!nameParam && !codeParam) {
+            if (!queryRaw) {
                 outputEl.innerText = '';
                 return;
             }
+
+            // 따옴표나 불필요한 앞뒤 공백 제거
+            const query = queryRaw.trim().replace(/['"]/g, '');
 
             try {
                 const response = await fetch(csvUrl);
@@ -48,21 +51,23 @@
                     }
                 }
 
-                // 1. 종목명으로 코드 검색 (?name=삼성전자)
-                if (nameParam) {
-                    const cleanName = nameParam.trim().replace(/['"]/g, '');
-                    const found = stockData.find(s => s.name === cleanName);
-                    outputEl.innerText = found ? found.code : 'NOT_FOUND';
+                // 1. 코드로 먼저 검색해보고 일치하면 -> 종목명(회사명) 반환
+                const foundByCode = stockData.find(s => s.code.toUpperCase() === query.toUpperCase());
+                if (foundByCode) {
+                    outputEl.innerText = foundByCode.name;
                     return;
                 }
 
-                // 2. 코드로 종목명 검색 (?code=005930)
-                if (codeParam) {
-                    const cleanCode = codeParam.trim().replace(/['"]/g, '');
-                    const found = stockData.find(s => s.code === cleanCode);
-                    outputEl.innerText = found ? found.name : 'NOT_FOUND';
+                // 2. 종목명으로 검색해보고 일치하면 -> 코드(또는 티커) 반환
+                const foundByName = stockData.find(s => s.name.toUpperCase() === query.toUpperCase());
+                if (foundByName) {
+                    outputEl.innerText = foundByName.code;
                     return;
                 }
+
+                // 3. 둘 다 없으면 NOT_FOUND
+                outputEl.innerText = 'NOT_FOUND';
+
             } catch (error) {
                 outputEl.innerText = 'ERROR';
             }
