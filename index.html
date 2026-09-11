@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>주식 종목/코드 실시간 조회</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f9f9f9; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { padding: 10px; font-size: 16px; width: 65%; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 15px; font-size: 16px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #004bb5; }
+        .result { margin-top: 15px; font-size: 18px; font-weight: bold; color: #333; }
+        .loading { color: #888; font-size: 14px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>📈 실시간 주식 종목 & 코드 조회기</h2>
+    <div id="status" class="loading">GitHub에서 데이터를 불러오는 중입니다...</div>
+
+    <div class="card">
+        <h3>1. 회사명으로 주식 코드 찾기</h3>
+        <input type="text" id="nameInput" placeholder="예: 삼성전자" onkeypress="if(event.key=='Enter') findCode()">
+        <button onclick="findCode()">코드 찾기</button>
+        <div class="result" id="codeResult">결과가 여기에 표시됩니다.</div>
+    </div>
+
+    <div class="card">
+        <h3>2. 주식 코드로 회사명 찾기</h3>
+        <input type="text" id="codeInput" placeholder="예: 005930" onkeypress="if(event.key=='Enter') findName()">
+        <button onclick="findName()">회사명 찾기</button>
+        <div class="result" id="nameResult">결과가 여기에 표시됩니다.</div>
+    </div>
+
+    <script>
+        const csvUrl = 'https://raw.githubusercontent.com/aran2023/stock_web/main/stock_name.csv';
+        let stockData = [];
+
+        async function loadStockData() {
+            try {
+                const response = await fetch(csvUrl);
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                stockData = [];
+                for (let i = 1; i < lines.length; i++) {
+                    let line = lines[i].trim();
+                    if (!line) continue;
+                    let parts = line.split(',');
+                    if (parts.length >= 2) {
+                        let code = parts[0].trim().replace(/['"]/g, '');
+                        let name = parts[1].trim().replace(/['"]/g, '');
+                        stockData.push({ code, name });
+                    }
+                }
+                document.getElementById('status').innerText = `데이터 로드 완료! (총 ${stockData.length}개 종목)`;
+                document.getElementById('status').style.color = 'green';
+
+                // 데이터 로드가 끝난 후 URL 파라미터 자동 검색 실행
+                checkUrlParameters();
+            } catch (error) {
+                document.getElementById('status').innerText = '데이터를 불러오는 데 실패했습니다. 주소를 확인해주세요.';
+                document.getElementById('status').style.color = 'red';
+            }
+        }
+
+        // 웹 주소창의 파라미터(?name=... 또는 ?code=...)를 읽어서 자동으로 처리하는 함수
+        function checkUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nameParam = urlParams.get('name');
+            const codeParam = urlParams.get('code');
+
+            if (nameParam) {
+                document.getElementById('nameInput').value = nameParam;
+                findCode();
+            }
+            if (codeParam) {
+                document.getElementById('codeInput').value = codeParam;
+                findName();
+            }
+        }
+
+        function findCode() {
+            const query = document.getElementById('nameInput').value.trim();
+            if (!query) return;
+            
+            const found = stockData.find(s => s.name.includes(query));
+            const resultEl = document.getElementById('codeResult');
+            
+            if (found) {
+                resultEl.innerHTML = `🏢 <span style="color:#0066cc;">${found.name}</span>의 코드: <b style="color:red;">${found.code}</b>`;
+            } else {
+                resultEl.innerText = '일치하는 회사명이 없습니다.';
+            }
+        }
+
+        function findName() {
+            const query = document.getElementById('codeInput').value.trim();
+            if (!query) return;
+
+            const found = stockData.find(s => s.code === query);
+            const resultEl = document.getElementById('nameResult');
+            
+            if (found) {
+                resultEl.innerHTML = `🔢 코드 <span style="color:#0066cc;">${found.code}</span>의 회사명: <b style="color:red;">${found.name}</b>`;
+            } else {
+                resultEl.innerText = '일치하는 주식 코드가 없습니다.';
+            }
+        }
+
+        loadStockData();
+    </script>
+</body>
+</html>
